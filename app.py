@@ -56,6 +56,8 @@ def dashboard_page():
 
 @app.route('/api/stats')
 def get_all_stats():
+    global miner_data  # Declare miner_data as global at the start of the function
+
     # Simple cleanup: remove miners not seen in a while (e.g., 10 minutes)
     # This is optional and can be more sophisticated
     current_time = int(time.time())
@@ -63,14 +65,14 @@ def get_all_stats():
 
     # Create a new dictionary for active miners to avoid modifying during iteration
     active_miner_data = OrderedDict()
+    # Now it's safe to read from the global miner_data
     for wallet, data in miner_data.items():
         if current_time - data.get("server_timestamp", 0) < stale_threshold:
             active_miner_data[wallet] = data
 
     # Update the global miner_data with only active ones
     # This is a simple way; for many miners, a proper DB or cleanup task is better
-    global miner_data  # Declare miner_data as global at the start of the function
-    miner_data = active_miner_data
+    miner_data = active_miner_data # Assignment to the global miner_data
 
     return jsonify(miner_data)
 
@@ -78,4 +80,3 @@ def get_all_stats():
 if __name__ == '__main__':
     # For local testing. Render will use gunicorn.
     app.run(debug=True, host='0.0.0.0', port=5000)
-
