@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miner Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { text-align: center; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .miner-stats { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; background-color: #fff; }
+        .miner-stats h2 { margin-top: 0; color: #555; }
+        .miner-stats p { margin: 5px 0; }
+        .last-seen { font-style: italic; color: #777; }
+        #no-data { text-align: center; color: #888; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Live Miner Statistics</h1>
+        <div id="stats-container">
+            <p id="no-data">Waiting for data...</p>
+            <!-- Stats will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const statsContainer = document.getElementById('stats-container');
+        const noDataP = document.getElementById('no-data');
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats'); // Endpoint to get all stats
+                if (!response.ok) {
+                    console.error('Failed to fetch stats:', response.status);
+                    noDataP.textContent = 'Error fetching data. Retrying...';
+                    return;
+                }
+                const data = await response.json();
+
+                if (Object.keys(data).length === 0) {
+                    noDataP.style.display = 'block';
+                    // Clear previous stats if any
+                    while (statsContainer.firstChild && statsContainer.firstChild !== noDataP) {
+                        statsContainer.removeChild(statsContainer.firstChild);
+                    }
+                } else {
+                    noDataP.style.display = 'none';
+                    // Clear previous stats before adding new ones
+                    while (statsContainer.firstChild && statsContainer.firstChild !== noDataP) {
+                        statsContainer.removeChild(statsContainer.firstChild);
+                    }
+
+                    for (const wallet in data) {
+                        const stats = data[wallet];
+                        const minerDiv = document.createElement('div');
+                        minerDiv.className = 'miner-stats';
+                        minerDiv.innerHTML = `
+                            <h2>Wallet: ${escapeHTML(wallet)}</h2>
+                            <p><strong>CPU Usage:</strong> ${escapeHTML(stats.cpu_usage.toFixed(1))}%</p>
+                            <p><strong>Uptime:</strong> ${formatUptime(stats.uptime)}</p>
+                            <p class="last-seen"><strong>Last Seen:</strong> ${new Date(stats.server_timestamp * 1000).toLocaleString()}</p>
+                        `;
+                        statsContainer.appendChild(minerDiv);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching or processing stats:', error);
+                noDataP.textContent = 'Error connecting to server. Retrying...';
+                noDataP.style.display = 'block';
+            }
+        }
+
+        function formatUptime(seconds) {
+            const d = Math.floor(seconds / (3600*24));
+            const h = Math.floor(seconds % (3600*24) / 3600);
+            const m = Math.floor(seconds % 3600 / 60);
+            const s = Math.floor(seconds % 60);
+            return `${d}d ${h}h ${m}m ${s}s`;
+        }
+
+        function escapeHTML(str) {
+            if (typeof str !== 'string' && typeof str !== 'number') return '';
+            str = String(str);
+            return str.replace(/[&<>"']/g, function (match) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[match];
+            });
+        }
+
+        // Fetch stats every 5 seconds
+        fetchStats(); // Initial fetch
+        setInterval(fetchStats, 5000);
+    </script>
+</body>
+</html>
